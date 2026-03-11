@@ -24,7 +24,11 @@ python scripts/eval_mutinfo.py \
 
 import functools
 import os
+import sys
 from dataclasses import dataclass, field
+
+# Add repo root to Python Path so 'import dllm' works out of the box
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import accelerate
 import torch
