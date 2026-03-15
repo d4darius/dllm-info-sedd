@@ -8,7 +8,7 @@ conda activate ~/miniconda3/envs/dllm
 
 # Local (1 GPU) 
 python scripts/train_lora.py \
-    --model_name_or_path GSAI-ML/LLaDA-8B-Base \
+    --model_name_or_path dllm-hub/Qwen3-0.6B-diffusion-mdlm-v0.1 \
     --dataset_file data.jsonl \
     --output_dir ./lora_outputs \
     --lora True
@@ -17,7 +17,7 @@ python scripts/train_lora.py \
 srun -p $PARTITION --quotatype=$QUOTATYPE --gres=gpu:8 scripts/train.slurm.sh \
     --accelerate_config "fsdp" \
     --script_path "scripts/train_lora.py" \
-    --model_name_or_path GSAI-ML/LLaDA-8B-Base \
+    --model_name_or_path dllm-hub/Qwen3-0.6B-diffusion-mdlm-v0.1 \
     --dataset_file data.jsonl \
     --output_dir ./lora_outputs \
     --lora True
