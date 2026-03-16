@@ -11,6 +11,7 @@ python scripts/train_lora.py \
     --model_name_or_path dllm-hub/Qwen3-0.6B-diffusion-mdlm-v0.1 \
     --dataset_file data.jsonl \
     --output_dir ./lora_outputs \
+    --eval_strategy no \
     --lora True
 
 # Slurm Cluster (FSDP):
@@ -20,6 +21,7 @@ srun -p $PARTITION --quotatype=$QUOTATYPE --gres=gpu:8 scripts/train.slurm.sh \
     --model_name_or_path dllm-hub/Qwen3-0.6B-diffusion-mdlm-v0.1 \
     --dataset_file data.jsonl \
     --output_dir ./lora_outputs \
+    --eval_strategy no \
     --lora True
 """
 
