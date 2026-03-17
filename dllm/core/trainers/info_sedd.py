@@ -139,27 +139,11 @@ class InfoSEDDTrainer(MDLMTrainer):
         effective_loss_mask = masked_mask & active_loss_mask
 
         # === 5. Compute weighted cross-entropy ===
-        # GPU Memory Optimization: F.cross_entropy over [b, l, V] is extremely memory intensive.
-        # We only need the loss for tokens where effective_loss_mask is True.
-        vocab_size = logits.size(-1)
-        active_indices = effective_loss_mask.view(-1).nonzero(as_tuple=True)[0]
-        
-        token_nll_flat = torch.zeros((b * l,), dtype=logits.dtype, device=input_ids.device)
-        
-        if len(active_indices) > 0:
-            active_logits = logits.view(-1, vocab_size)[active_indices]
-            active_labels = input_ids.view(-1)[active_indices]
-            
-            # calculate loss ONLY on the needed tokens
-            active_nll = F.cross_entropy(active_logits, active_labels, reduction="none")
-            token_nll_flat[active_indices] = active_nll
-
-        token_nll = token_nll_flat.view(b, l)
-        
-        # Free enormous unneeded VRAM tensors instantly
-        del logits
-        if not return_outputs:
-            del outputs
+        token_nll = F.cross_entropy(
+            logits.transpose(1, 2),  # [b, V, l]
+            input_ids,  # [b, l]
+            reduction="none",  # [b, l]
+        )
 
         token_nll = token_nll * loss_weights * effective_loss_mask.to(token_nll.dtype)
 
