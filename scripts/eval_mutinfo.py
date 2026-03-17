@@ -62,7 +62,7 @@ class EvalArguments(dllm.utils.DataArguments):
     )
 
 
-def load_mutinfo_dataset(data_path, tokenizer):
+def load_mutinfo_dataset(data_path, tokenizer, max_tokens):
     import datasets
     # Load from local JSONL
     ds = datasets.load_dataset("json", data_files={"test": data_path})["test"]
