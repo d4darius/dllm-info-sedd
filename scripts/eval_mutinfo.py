@@ -74,13 +74,20 @@ def load_mutinfo_dataset(data_path, tokenizer):
     
     ds = ds.map(map_to_messages, desc="Formatting to messages")
 
-    # default_sft_map_fn tokenizes and calculates prompt_len natively in dLLM
-    map_fn = functools.partial(
-        dllm.utils.data.default_sft_map_fn, 
-        tokenizer=tokenizer, 
-        mask_prompt_loss=False # We handle our own loss masking within the InfoSEDDTrainer
-    )
-    
+    # Customize mapping to ensure prompt_len is always calculated and returned for InfoSEDD
+    def map_fn(row):
+        prompt_response_tokens = tokenizer.apply_chat_template(
+            row["messages"], tokenize=True, add_generation_prompt=False
+        )
+        prompt_tokens = tokenizer.apply_chat_template(
+            row["messages"][:-1], tokenize=True, add_generation_prompt=True
+        )
+        # We don't mask prompt loss here, InfoSEDD handles it dynamically!
+        return {
+            "input_ids": prompt_response_tokens, 
+            "labels": prompt_response_tokens.copy(),
+            "prompt_len": len(prompt_tokens)
+        }
     
     ds = ds.map(
         map_fn,
