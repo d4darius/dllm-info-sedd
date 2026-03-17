@@ -95,10 +95,21 @@ def load_mutinfo_dataset(data_path, tokenizer):
         desc="Tokenizing and extracting varying prompt lengths"
     )
 
+    # ---------------------------------------------------------
+    # FIX: Filter out sequences that will blow up the GPU memory
+    # ---------------------------------------------------------
+    MAX_TOKENS = 1024  # Adjust this depending on your GPU (e.g., 2048)
+    
+    original_size = len(ds)
+    ds = ds.filter(lambda row: len(row["input_ids"]) <= MAX_TOKENS, desc="Filtering long sequences")
+    filtered_size = len(ds)
+    
+    print(f"\n[INFO] Filtered out {original_size - filtered_size} sequences longer than {MAX_TOKENS} tokens.\n")
+    # ---------------------------------------------------------
+
     var_indices = ds[0]["prompt_len"]
 
     # The original implementation statically extracts the prompt boundary
-    # and attaches it as a dataset property before passing it to the config
     ds = ds.select_columns([col for col in ds.column_names if col != "prompt_len"])
     
     return {"test": ds, "var_indices": var_indices}
