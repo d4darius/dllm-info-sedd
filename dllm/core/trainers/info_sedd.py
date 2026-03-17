@@ -19,7 +19,7 @@ from dllm.core.trainers.mdlm import MDLMConfig, MDLMTrainer
 class InfoSEDDConfig(MDLMConfig):
     is_parametric_marginal: bool = True
     variant: str = "j"  # "j" for joint, "c" for conditional
-    var_indices: int | list[int] | None = None  # fallback for prompt-response boundary
+    var_indices: int | None = None  # fallback for prompt-response boundary
 
 
 class InfoSEDDTrainer(MDLMTrainer):
