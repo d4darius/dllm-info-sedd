@@ -25,6 +25,7 @@ python scripts/eval_mutinfo.py \
 import functools
 import os
 import sys
+import json
 from dataclasses import dataclass, field
 
 # Add repo root to Python Path so 'import dllm' works out of the box
@@ -50,6 +51,14 @@ class EvalArguments(dllm.utils.DataArguments):
     mc_estimates: int = field(
         default=100,
         metadata={"help": "Number of Monte-Carlo estimates (evaluation batches) to execute."}
+    )
+    max_tokens: int = field(
+        default=1024,
+        metadata={"help": "Maximum sequence length allowed to prevent CUDA OOM."}
+    )
+    eval_name: str = field(
+        default="default_model",
+        metadata={"help": "Name of the model being evaluated (used for the JSON output)."}
     )
 
 
@@ -98,13 +107,11 @@ def load_mutinfo_dataset(data_path, tokenizer):
     # ---------------------------------------------------------
     # FIX: Filter out sequences that will blow up the GPU memory
     # ---------------------------------------------------------
-    MAX_TOKENS = 1024  # Adjust this depending on your GPU (e.g., 2048)
-    
     original_size = len(ds)
-    ds = ds.filter(lambda row: len(row["input_ids"]) <= MAX_TOKENS, desc="Filtering long sequences")
+    ds = ds.filter(lambda row: len(row["input_ids"]) <= max_tokens, desc="Filtering long sequences")
     filtered_size = len(ds)
     
-    print(f"\n[INFO] Filtered out {original_size - filtered_size} sequences longer than {MAX_TOKENS} tokens.\n")
+    print(f"\n[INFO] Filtered out {original_size - filtered_size} sequences longer than {max_tokens} tokens.\n")
     # ---------------------------------------------------------
 
     var_indices = ds[0]["prompt_len"]
