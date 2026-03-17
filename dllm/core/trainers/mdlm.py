@@ -57,6 +57,22 @@ class MDLMTrainer(transformers.Trainer):
         )
         self.add_callback(self.meter)
 
+    def _remove_unused_columns(self, dataset, description: str | None = None):
+        if not self.args.remove_unused_columns:
+            return dataset
+        self._set_signature_columns_if_needed()
+        
+        # In Info-SEDD, prompt_len is required in compute_loss, but isn't
+        # explicitly in the signature of AutoModelForMaskedLM.forward().
+        signature_columns = self._signature_columns if self._signature_columns is not None else []
+        if "prompt_len" not in signature_columns:
+            signature_columns = list(signature_columns) + ["prompt_len"]
+            
+        ignored_columns = list(set(dataset.column_names) - set(signature_columns))
+        if len(ignored_columns) > 0:
+            dataset = dataset.remove_columns(ignored_columns)
+        return dataset
+
     def _preprocess_inputs(self, inputs):
         if self.right_shift_logits:
             labels = inputs.get("labels", None)
