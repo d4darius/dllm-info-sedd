@@ -62,7 +62,7 @@ class EvalArguments(dllm.utils.DataArguments):
     )
 
 
-def load_mutinfo_dataset(data_path, tokenizer, max_tokens):
+def load_mutinfo_dataset_for_eval(data_path, tokenizer, max_tokens):
     import datasets
     # Load from local JSONL
     ds = datasets.load_dataset("json", data_files={"test": data_path})["test"]
@@ -145,7 +145,7 @@ def evaluate():
 
     # ----- Dataset ----------------------------------------------------------------
     with accelerate.PartialState().local_main_process_first():
-        dataset_output = load_mutinfo_dataset(data_args.dataset_file, tokenizer, data_args.max_tokens)
+        dataset_output = load_mutinfo_dataset_for_eval(data_args.dataset_file, tokenizer, data_args.max_tokens)
         dataset = dataset_output["test"]
         
         # Original diffusion implementation relies on extracting var_indices statically

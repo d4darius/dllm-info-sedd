@@ -71,7 +71,9 @@ def load_fine_tuning_dataset(data_path, tokenizer):
             messages.append({"role": "assistant", "content": summary})
         return {"messages": messages}
     
-    ds = ds.map(map_to_messages, desc="Formatting to messages")
+    # Use multiple processes for faster mapping
+    num_proc = os.cpu_count()
+    ds = ds.map(map_to_messages, desc="Formatting to messages", num_proc=num_proc)
 
     # In fine-tuning, `mask_prompt_loss=True` configures standard autoregressive/seq2seq
     # masking where the prompt (article) is not penalized. Alternatively, pass False
@@ -86,6 +88,7 @@ def load_fine_tuning_dataset(data_path, tokenizer):
     ds = ds.map(
         map_fn,
         remove_columns=ds.column_names,
+        num_proc=num_proc,
         desc="Tokenizing for fine-tuning"
     )
     return {"train": ds}
@@ -97,6 +100,14 @@ def train():
         (dllm.utils.ModelArguments, TrainArguments, dllm.core.trainers.MDLMConfig)
     )
     model_args, data_args, training_args = parser.parse_args_into_dataclasses()
+
+    # FIX: If eval_strategy is set to perform evaluation (e.g., 'steps' or 'epoch') 
+    # but no eval dataset is provided in this script, the Trainer will raise a ValueError.
+    # We default it to 'no' for this specific fine-tuning script.
+    if training_args.eval_strategy != "no":
+        logger.info(f"Changing eval_strategy from {training_args.eval_strategy} to 'no' because no evaluation dataset is provided.")
+        training_args.eval_strategy = "no"
+
     dllm.utils.print_args_main(model_args, data_args, training_args)
     dllm.utils.initial_training_setup(model_args, data_args, training_args)
 
@@ -136,7 +147,7 @@ def train():
     
     trainer = dllm.core.trainers.MDLMTrainer(
         model=model,
-        tokenizer=tokenizer,
+        processing_class=tokenizer,  # Replaces 'tokenizer' to fix FutureWarning
         train_dataset=dataset["train"],
         args=training_args,
         data_collator=(

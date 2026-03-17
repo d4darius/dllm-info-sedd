@@ -75,8 +75,20 @@ def get_model(
 
     # Optionally train with lora
     import peft
-    if not isinstance(model, peft.PeftModel):
+    import os
+    
+    # If the model already has adapters (e.g. loaded from a checkpoint), skip loading them again
+    # This prevents the "trying to modify a model with PEFT for a second time" warning.
+    is_peft = isinstance(model, peft.PeftModel) or hasattr(model, "peft_config")
+    
+    # Check if the weight path itself is a PEFT checkpoint
+    is_peft_path = model_name_or_path and os.path.exists(os.path.join(model_name_or_path, "adapter_config.json"))
+
+    if getattr(model_args, "lora", False) and not (is_peft or is_peft_path):
         model = load_peft(model, model_args)
+    elif is_peft_path and not isinstance(model, peft.PeftModel):
+        # If it's a PEFT path but not loaded as PeftModel yet, load it properly
+        model = peft.PeftModel.from_pretrained(model, model_name_or_path)
 
     return model
 
