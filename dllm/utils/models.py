@@ -74,7 +74,9 @@ def get_model(
         model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=False)
 
     # Optionally train with lora
-    model = load_peft(model, model_args)
+    import peft
+    if not isinstance(model, peft.PeftModel):
+        model = load_peft(model, model_args)
 
     return model
 
@@ -129,8 +131,17 @@ def get_tokenizer(
     if not tokenizer.bos_token:
         tokenizer.bos_token = tokenizer.pad_token
 
+    import os
+    import json
+    if os.path.exists(os.path.join(model_name_or_path, "adapter_config.json")):
+        with open(os.path.join(model_name_or_path, "adapter_config.json"), "r") as f:
+            peft_config = json.load(f)
+            base_model_name_or_path = peft_config.get("base_model_name_or_path", model_name_or_path)
+    else:
+        base_model_name_or_path = model_name_or_path
+
     # If model is not provided, return as-is
-    model_cfg = transformers.AutoConfig.from_pretrained(model_name_or_path)
+    model_cfg = transformers.AutoConfig.from_pretrained(base_model_name_or_path)
     model_cls = transformers.AutoModel._model_mapping[type(model_cfg)]
 
     # ---------------- Model-specific customization ----------------
