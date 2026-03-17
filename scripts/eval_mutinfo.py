@@ -145,7 +145,7 @@ def evaluate():
 
     # ----- Dataset ----------------------------------------------------------------
     with accelerate.PartialState().local_main_process_first():
-        dataset_output = load_mutinfo_dataset(data_args.dataset_file, tokenizer)
+        dataset_output = load_mutinfo_dataset(data_args.dataset_file, tokenizer, data_args.max_tokens)
         dataset = dataset_output["test"]
         
         # Original diffusion implementation relies on extracting var_indices statically
@@ -182,15 +182,27 @@ def evaluate():
     mutinfo_estimate = eval_metrics.get("eval_loss", float("nan"))
     logger.info(f"Mutual information estimate (nats): {mutinfo_estimate}")
     
-    # Save the estimate output to a file if output_dir is given
+    # Save the estimate output to a JSON file
     result_dir = training_args.output_dir if training_args.output_dir else "mi_results"
     full_res_path = os.path.join(result_dir, "infosedd", training_args.variant)
     os.makedirs(full_res_path, exist_ok=True)
     
-    with open(os.path.join(full_res_path, "final_mutinfo.txt"), "w") as f:
-        f.write(f"{mutinfo_estimate}\n")
-    logger.info(f"Final estimate securely saved to {os.path.join(full_res_path, 'final_mutinfo.txt')}")
-
+    # Create a nice dictionary with all your metadata
+    results_dict = {
+        "model_name": data_args.eval_name,
+        "variant": training_args.variant,
+        "mc_estimates_used": data_args.mc_estimates,
+        "max_tokens_limit": data_args.max_tokens,
+        "mutinfo_estimate_nats": mutinfo_estimate
+    }
+    
+    # Name the file dynamically based on the model name
+    json_filename = f"{data_args.eval_name}_mutinfo.json"
+    
+    with open(os.path.join(full_res_path, json_filename), "w") as f:
+        json.dump(results_dict, f, indent=4)
+        
+    logger.info(f"Final estimate securely saved to {os.path.join(full_res_path, json_filename)}")
 
 if __name__ == "__main__":
     evaluate()
