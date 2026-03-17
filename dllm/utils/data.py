@@ -239,18 +239,17 @@ def default_sft_map_fn(row, *, tokenizer, mask_prompt_loss: bool = True) -> dict
     )
     labels = prompt_response_tokens.copy()
 
+    prompt_tokens = tokenizer.apply_chat_template(
+        row["messages"][:-1], tokenize=True, add_generation_prompt=True
+    )
     if mask_prompt_loss:
-        prompt_tokens = tokenizer.apply_chat_template(
-            row["messages"][:-1], tokenize=True, add_generation_prompt=True
-        )
         labels[: len(prompt_tokens)] = [-100] * len(prompt_tokens)
-        return {
-            "input_ids": prompt_response_tokens,
-            "labels": labels,
-            "prompt_len": len(prompt_tokens),
-        }
 
-    return {"input_ids": prompt_response_tokens, "labels": labels}
+    return {
+        "input_ids": prompt_response_tokens,
+        "labels": labels,
+        "prompt_len": len(prompt_tokens),
+    }
 
 
 def prepend_bos(
