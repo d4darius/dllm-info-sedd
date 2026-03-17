@@ -82,13 +82,14 @@ def load_mutinfo_dataset(data_path, tokenizer):
     )
     
     
-    var_indices = ds[0]["prompt_len"]
-    
     ds = ds.map(
         map_fn,
         remove_columns=ds.column_names,
         desc="Tokenizing and extracting varying prompt lengths"
     )
+
+    var_indices = ds[0]["prompt_len"]
+
     # The original implementation statically extracts the prompt boundary
     # and attaches it as a dataset property before passing it to the config
     ds = ds.select_columns([col for col in ds.column_names if col != "prompt_len"])
