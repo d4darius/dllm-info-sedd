@@ -97,9 +97,6 @@ def evaluate():
     dllm.utils.print_args_main(model_args, data_args, training_args)
     dllm.utils.initial_training_setup(model_args, data_args, training_args)
 
-    # Override standard config settings with specific Eval parameters
-    training_args.is_parametric_marginal = data_args.is_parametric_marginal
-    training_args.variant = data_args.variant
 
     if "eval_batch_size" not in training_args.__dict__:
         training_args.per_device_eval_batch_size = 8
