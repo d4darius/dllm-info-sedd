@@ -81,12 +81,19 @@ def load_mutinfo_dataset(data_path, tokenizer):
         mask_prompt_loss=False # We handle our own loss masking within the InfoSEDDTrainer
     )
     
+    
+    var_indices = ds[0]["prompt_len"]
+    
     ds = ds.map(
         map_fn,
         remove_columns=ds.column_names,
         desc="Tokenizing and extracting varying prompt lengths"
     )
-    return {"test": ds}
+    # The original implementation statically extracts the prompt boundary
+    # and attaches it as a dataset property before passing it to the config
+    ds = ds.select_columns([col for col in ds.column_names if col != "prompt_len"])
+    
+    return {"test": ds, "var_indices": var_indices}
 
 
 def evaluate():
@@ -112,7 +119,12 @@ def evaluate():
 
     # ----- Dataset ----------------------------------------------------------------
     with accelerate.PartialState().local_main_process_first():
-        dataset = load_mutinfo_dataset(data_args.dataset_file, tokenizer)
+        dataset_output = load_mutinfo_dataset(data_args.dataset_file, tokenizer)
+        dataset = dataset_output["test"]
+        
+        # Original diffusion implementation relies on extracting var_indices statically
+        # and passing it directly down into the training/evaluation config.
+        training_args.var_indices = dataset_output["var_indices"]
         
     # ----- Evaluation -------------------------------------------------------------
     logger.info(f"Start Information Metrics Eval over variant: {training_args.variant}...")
@@ -124,7 +136,7 @@ def evaluate():
         model=model,
         tokenizer=tokenizer,
         args=training_args,
-        eval_dataset=dataset["test"],
+        eval_dataset=dataset,
         data_collator=dllm.utils.collators.PrependBOSWrapper(
             transformers.DataCollatorForSeq2Seq(tokenizer, return_tensors="pt", padding=True),
             bos_token_id=tokenizer.bos_token_id,
@@ -135,8 +147,8 @@ def evaluate():
     # Limit batches to mc_estimates if standard Trainer evaluates the entire dataset
     # We can handle this by slicing the evaluation dataset.
     total_samples_needed = data_args.mc_estimates * training_args.per_device_eval_batch_size
-    if len(dataset["test"]) > total_samples_needed:
-        trainer.eval_dataset = dataset["test"].select(range(total_samples_needed))
+    if len(dataset) > total_samples_needed:
+        trainer.eval_dataset = dataset.select(range(total_samples_needed))
 
     eval_metrics = trainer.evaluate()
     

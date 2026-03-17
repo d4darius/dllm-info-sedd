@@ -69,7 +69,18 @@ class InfoSEDDTrainer(MDLMTrainer):
                 boundary = boundary[0]
             prompt_lens = torch.full((b, 1), boundary, device=input_ids.device)
         else:
-            raise ValueError("No var_indices or prompt_len provided for InfoSEDD.")
+            # Fallback: Infer prompt boundary dynamically from standard SFT label masking (-100)
+            # Find the last -100 index in each sequence (which indicates the end of the prompt)
+            # If a sequence has no -100, we fallback to sequence length
+            prompt_lens = torch.zeros(b, dtype=torch.long, device=input_ids.device)
+            for i in range(b):
+                masked_indices = (labels[i] == -100).nonzero(as_tuple=True)[0]
+                if len(masked_indices) > 0:
+                    # The prompt ends exactly 1 token after the last -100 index
+                    prompt_lens[i] = masked_indices[-1].item() + 1
+                else:
+                    prompt_lens[i] = l # Fallback to entire sequence if no prompt is masked
+            prompt_lens = prompt_lens.unsqueeze(1)
 
         seq_idx = torch.arange(l, device=input_ids.device).unsqueeze(0)  # [1, l]
         x_mask = seq_idx < prompt_lens  # tokens in X [b, l]
