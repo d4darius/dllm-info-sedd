@@ -85,6 +85,14 @@ class PrependBOSWrapper(CollatorWrapper):
     bos_token_id: int | None = None
     label_pad_token_id: int = -100
 
+    def before(self, features):
+        # DataCollatorForSeq2Seq will drop feature keys it doesn't recognize (like prompt_len)
+        # So we extract them here before it runs.
+        self._stashed_prompt_lens = [
+            f["prompt_len"] for f in features if "prompt_len" in f
+        ]
+        return features
+
     def after(self, outputs):
         assert self.bos_token_id
         input_ids = outputs.get("input_ids")
@@ -123,6 +131,16 @@ class PrependBOSWrapper(CollatorWrapper):
             )
             attention_mask = torch.cat([bos_attention, attention_mask], dim=1)
             outputs["attention_mask"] = attention_mask
+
+        # Restore prompt_len if we stashed it
+        if hasattr(self, "_stashed_prompt_lens") and len(self._stashed_prompt_lens) == bsz:
+            # We add +1 because we just prepended a BOS token to the sequence
+            outputs["prompt_len"] = torch.tensor(
+                [pl + 1 for pl in self._stashed_prompt_lens], 
+                dtype=torch.long, 
+                device=input_ids.device
+            )
+            del self._stashed_prompt_lens
 
         return outputs
 
